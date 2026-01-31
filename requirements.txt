@@ -1,0 +1,33 @@
+# Backend
+fastapi
+uvicorn[standard]
+pydantic
+
+# Async and HTTP
+httpx
+aiofiles
+
+# Websockets
+websockets
+
+# Data
+numpy
+scipy
+
+# Caching
+redis
+
+# Config
+python-dotenv
+
+# Monitoring & Logging
+structlog
+
+# Scheduling
+apscheduler
+
+# Machine Learning
+scikit-learn
+
+# Debugging
+python-multipart
