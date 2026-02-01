@@ -5,6 +5,8 @@ from backend.actions.rollback import RollbackManager
 from backend.actions.traffic_splitter import TrafficSplitter
 from backend.data.feature_store import FeatureStore
 from backend.data.schemas import Hypothesis
+from backend.state import state
+from datetime import datetime
 
 
 class PilotAgent:
@@ -16,23 +18,51 @@ class PilotAgent:
         self.store = store
         self.state = state
 
-        self.splitter = TrafficSplitter()
+        from backend.state import state
+
+        self.splitter = state.traffic_splitter
+
         self.executor = ActionExecutor(self.splitter)
         self.rollback_mgr = RollbackManager(self.splitter)
 
     def act(self):
+        # No hypotheses → nothing to do
         if not self.state.active_hypotheses:
             return
 
         hypothesis: Hypothesis = self.state.active_hypotheses[0]
         self.state.processed_hypotheses.append(hypothesis)
 
-
+        # Guardrail: insufficient confidence
         if hypothesis.confidence < Guardrails.MIN_CONFIDENCE:
             return
 
-        shift = min(hypothesis.suggested_traffic_shift, Guardrails.MAX_TRAFFIC_SHIFT)
+        # Determine safe traffic shift
+        shift = min(
+            hypothesis.suggested_traffic_shift,
+            Guardrails.MAX_TRAFFIC_SHIFT,
+        )
+
+        # Execute shadow routing
         self.executor.divert_shadow_traffic(shift)
 
-        print(f"\n🧪 Shadow experiment started: {shift*100}% traffic diverted")
+        # 🔥 STORE ACTIVE EXPERIMENT (THIS WAS THE MISSING PART)
+        state.active_experiment = {
+            "issuer": hypothesis.issuer_bank,
+            "route": hypothesis.route_id,
+            "backup_route": hypothesis.recommended_backup_route,
+            "traffic_shift": shift,
+            "confidence": hypothesis.confidence,
+            "started_at": datetime.utcnow().isoformat(),
+        }
+
+        # 🖥 Backend logs (always visible)
+        print(
+            "\n[EXPERIMENT STARTED]",
+            state.active_experiment,
+            flush=True,
+        )
+
+        print("🧪 Shadow experiment started")
+        print(f"Traffic diverted: {shift * 100}%")
         print("Current allocations:", self.splitter.get_allocations())

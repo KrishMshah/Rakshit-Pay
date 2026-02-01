@@ -46,31 +46,35 @@ class AnalystAgent:
 
             drop = self.baseline_success_rate - metrics.success_rate
 
-            if drop >= self.degradation_threshold:
-                # Deduplication: avoid repeating same hypothesis
-                for h in self.state.active_hypotheses:
-                    if h.route_id == route_id and h.issuer_bank == issuer:
-                        return None
+            if drop < self.degradation_threshold:
+                continue
 
-                # Confidence based on evidence volume
-                confidence = min(0.95, metrics.total_count / 50)
+            # ✅ Deduplicate ONLY against already-processed hypotheses
+            for h in self.state.processed_hypotheses:
+                if h.route_id == route_id and h.issuer_bank == issuer:
+                    return None
 
-                hypothesis = Hypothesis(
-                    route_id=route_id,
-                    issuer_bank=issuer,
-                    baseline_ps=self.baseline_success_rate,
-                    current_ps=metrics.success_rate,
-                    confidence=round(confidence, 2),
-                    suspected_cause="issuer_specific_degradation",
-                    recommended_backup_route=AppConfig.BACKUP_ROUTE_ID,
-                    suggested_traffic_shift=0.05,
-                    created_at=datetime.utcnow()
-                )
+            # Confidence based on evidence volume (caps at 0.95)
+            confidence = min(0.95, metrics.total_count / 50)
 
-                # Record hypothesis in shared state
-                self.state.active_hypotheses.append(hypothesis)
-                self.state.latest_metrics[f"{route_id}:{issuer}"] = metrics
+            hypothesis = Hypothesis(
+                route_id=route_id,
+                issuer_bank=issuer,
+                baseline_ps=self.baseline_success_rate,
+                current_ps=metrics.success_rate,
+                confidence=round(confidence, 2),
+                suspected_cause="issuer_specific_degradation",
+                recommended_backup_route=AppConfig.BACKUP_ROUTE_ID,
+                suggested_traffic_shift=0.05,
+                created_at=datetime.utcnow()
+            )
 
-                return hypothesis
+            # ✅ Publish hypothesis into shared agent state
+            self.state.active_hypotheses.append(hypothesis)
+            self.state.latest_metrics[f"{route_id}:{issuer}"] = metrics
+
+            print("🧠 Hypothesis published:", hypothesis, flush=True)
+
+            return hypothesis
 
         return None

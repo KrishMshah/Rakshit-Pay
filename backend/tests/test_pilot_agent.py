@@ -31,5 +31,8 @@ else:
 print("\n--- Pilot Action ---")
 pilot.act()
 
-print("\nFinal traffic allocations:")
-print(pilot.splitter.get_allocations())
+from backend.state import state
+
+print("Final traffic allocations:")
+print(state.traffic_splitter.get_allocations())
+

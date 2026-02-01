@@ -1,17 +1,16 @@
-from typing import Dict, List
-from backend.data.schemas import RouteMetrics, Hypothesis
-
-
 class AgentState:
-    """
-    Shared state across agents.
-    """
-
     def __init__(self):
-        self.latest_metrics: Dict[str, RouteMetrics] = {}
+        # ----- Analyst Agent -----
+        # Active hypotheses detected by the analyst
+        self.active_hypotheses = []
 
-        # Visible to API
-        self.active_hypotheses: List[Hypothesis] = []
+        # Hypotheses already processed by the pilot
+        self.processed_hypotheses = []
 
-        # Internal bookkeeping
-        self.processed_hypotheses: List[Hypothesis] = []
+        # Latest metrics observed per (route, issuer)
+        # key: "route_id:issuer"
+        self.latest_metrics = {}
+
+        # ----- Pilot Agent -----
+        # Currently running shadow experiment (if any)
+        self.active_experiment = None

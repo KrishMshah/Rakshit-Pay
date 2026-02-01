@@ -1,13 +1,28 @@
 from fastapi import FastAPI
 
+from fastapi.middleware.cors import CORSMiddleware
 from backend.lifecycle import AppLifecycle
 from backend.api.ingest import router as ingest_router, init_ingest
 from backend.api.metrics import router as metrics_router, init_metrics
 from backend.api.decisions import router as decisions_router, init_decisions
 from backend.api.websocket import router as websocket_router
+from backend.api import experiments
 
 
-app = FastAPI(title="PayOps Sentinel")
+
+app = FastAPI(title="Rakshit Pay")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(experiments.router)
 
 lifecycle = AppLifecycle()
 
@@ -25,6 +40,17 @@ async def on_startup():
 @app.on_event("shutdown")
 async def on_shutdown():
     lifecycle.stop()
+
+from backend.data.feature_store import FeatureStore
+from backend.agents.agent_loop import AgentLoop
+
+feature_store = FeatureStore()
+agent_loop = AgentLoop(feature_store, interval_seconds=5)
+
+@app.on_event("startup")
+def start_agent_loop():
+    agent_loop.start_async(route_id="primary_route")
+
 
 
 # Register routers

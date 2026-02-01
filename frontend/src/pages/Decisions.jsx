@@ -1,35 +1,41 @@
-import React from "react";
-import DecisionLog from "../components/DecisionLog.jsx";
+import { useEffect, useState } from "react";
+import { fetchHypotheses } from "../api";
+import DecisionLog from "../components/DecisionLog";
 
-export default function Decisions({ decisions = [], loading, error }) {
+export default function Decisions() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetchHypotheses();
+        setItems(res.data);
+      } catch (e) {
+        console.error("Failed to load hypotheses", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (loading) return <p>Loading decisions…</p>;
+
   return (
     <div>
-      <div style={styles.header}>
-        <h2 style={styles.h2}>Decisions</h2>
-        <div style={styles.badges}>
-          <span style={styles.badge}>Total: {decisions.length}</span>
-          {loading ? <span style={styles.badge}>Loading…</span> : null}
-          {error ? <span style={{ ...styles.badge, borderColor: "rgba(255,120,120,0.5)" }}>{error}</span> : null}
-        </div>
-      </div>
+      <h2>Agent Decisions</h2>
 
-      <div style={{ marginTop: 14 }}>
-        <DecisionLog items={decisions} />
-      </div>
+      {items.length === 0 && (
+        <p>No active hypotheses — system healthy.</p>
+      )}
+
+      {items.map((h, idx) => (
+        <DecisionLog key={idx} hypothesis={h} />
+      ))}
     </div>
   );
 }
-
-const styles = {
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
-  h2: { margin: 0 },
-  badges: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
-  badge: {
-    fontSize: 12,
-    opacity: 0.85,
-    padding: "6px 10px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)"
-  }
-};
